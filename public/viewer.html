@@ -7,114 +7,117 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
+html,body{
+  width:100%;height:100%;
+  background:#000;
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
 
-/* 16:9 컨테이너 — 항상 화면 안에 맞춤 */
-#stage{
+/* 바깥 래퍼: 화면에 딱 맞는 16:9 박스 */
+#outer{
   position:relative;
-  width:100%;
-  aspect-ratio:16/9;
-  max-width:calc(100vh * 16/9);
-  max-height:calc(100vw * 9/16);
+  background:#000;
+  overflow:hidden;
+}
+
+/* 안쪽: 항상 1920×1080 기준, scale로 축소/확대 */
+#stage{
+  width:1920px;
+  height:1080px;
+  position:absolute;
+  top:0;left:0;
+  transform-origin:top left;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  overflow:hidden;
   background:#000;
   transition:background .4s;
+  padding:60px;
 }
 
-/* 로고 */
 #logo{
-  max-height:11%;
-  max-width:40%;
+  max-height:110px;
+  max-width:600px;
   object-fit:contain;
-  margin-bottom:3%;
+  margin-bottom:32px;
   display:none;
 }
 #logo.show{display:block}
 
-/* 제목 */
 #title{
   font-family:'IBM Plex Sans KR',sans-serif;
-  font-size:3.2vw;
+  font-size:56px;
   font-weight:300;
   color:rgba(255,255,255,.65);
-  letter-spacing:.08em;
+  letter-spacing:4px;
   text-align:center;
-  margin-bottom:1.5%;
-  transition:color .3s, font-size .2s;
-  max-width:90%;
+  margin-bottom:16px;
+  transition:color .3s,font-size .2s;
+  max-width:1600px;
+  line-height:1.3;
 }
-
-/* 발표자 */
 #speaker{
   font-family:'IBM Plex Sans KR',sans-serif;
-  font-size:1.8vw;
+  font-size:34px;
   font-weight:300;
   color:rgba(255,255,255,.35);
-  letter-spacing:.06em;
+  letter-spacing:2px;
   text-align:center;
-  margin-bottom:2%;
-  transition:color .3s, font-size .2s;
+  margin-bottom:24px;
+  transition:color .3s,font-size .2s;
 }
-
-/* 타이머 */
 #time{
   font-family:'Bebas Neue',monospace;
-  font-size:22vw;
+  font-size:380px;
   color:#fff;
   line-height:1;
-  letter-spacing:.04em;
+  letter-spacing:8px;
   text-align:center;
-  transition:color .3s, font-size .2s;
+  transition:color .3s,font-size .2s;
 }
 #time.warn{color:#ffab40}
 #time.neg{color:#ff1744}
 
-/* 메시지 — 타이머 아래, 제목 폰트 따름 */
 #msg{
   font-family:'IBM Plex Sans KR',sans-serif;
-  font-size:2.4vw;
+  font-size:42px;
   font-weight:400;
   color:#fff;
   background:rgba(41,121,255,.88);
-  padding:1% 4%;
-  border-radius:6px;
-  margin-top:3%;
-  max-width:88%;
+  padding:20px 60px;
+  border-radius:10px;
+  margin-top:40px;
+  max-width:1600px;
   text-align:center;
   display:none;
   animation:fadeIn .25s ease;
+  line-height:1.4;
 }
 #msg.show{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-/* NEXT 정보 — 좌상단 */
 #next-up{
   position:absolute;
-  top:3%;left:3%;
-  font-size:.9vw;
-  color:rgba(255,255,255,.22);
+  top:32px;left:40px;
   font-family:'IBM Plex Sans KR',sans-serif;
+  font-size:20px;
+  color:rgba(255,255,255,.22);
   line-height:1.9;
   text-align:left;
 }
 #next-label{
-  font-size:.75vw;
-  letter-spacing:.14em;
+  font-size:16px;
+  letter-spacing:3px;
   text-transform:uppercase;
   color:rgba(255,255,255,.18);
-  margin-bottom:2px;
+  margin-bottom:4px;
 }
-
-/* 라이브 도트 — 우상단 */
 #status-dot{
   position:absolute;
-  top:3%;right:3%;
-  width:.7vw;height:.7vw;
-  min-width:6px;min-height:6px;
+  top:38px;right:40px;
+  width:14px;height:14px;
   border-radius:50%;
   background:#333;
   transition:background .3s;
@@ -127,26 +130,41 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;display:flex;al
 <style id="dynamic-style"></style>
 <style id="custom-font-style"></style>
 
-<div id="stage">
-  <div id="next-up"><div id="next-label"></div><div id="next-list"></div></div>
-  <div id="status-dot"></div>
-
-  <img id="logo" src="" alt="">
-  <div id="title"></div>
-  <div id="speaker"></div>
-  <div id="time">--:--</div>
-  <div id="msg"></div>
+<div id="outer">
+  <div id="stage">
+    <div id="next-up"><div id="next-label"></div><div id="next-list"></div></div>
+    <div id="status-dot"></div>
+    <img id="logo" src="" alt="">
+    <div id="title"></div>
+    <div id="speaker"></div>
+    <div id="time">--:--</div>
+    <div id="msg"></div>
+  </div>
 </div>
 
 <script>
 let warnSecs=60, timers=[], curIdx=0;
 let currentStyle={
-  timeSize:22, titleSize:3.2, speakerSize:1.8,
+  timeSize:380, titleSize:56, speakerSize:34,
   timeColor:'#ffffff', titleColor:'rgba(255,255,255,0.65)',
   speakerColor:'rgba(255,255,255,0.35)',
   warnColor:'#ffab40', negColor:'#ff1744',
   bgColor:'#000000', fontName:'', fontData:''
 };
+
+// 16:9 스케일 계산
+function fitStage(){
+  const W=1920, H=1080;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const scale=Math.min(vw/W, vh/H);
+  const ow=W*scale, oh=H*scale;
+  const outer=document.getElementById('outer');
+  outer.style.width=ow+'px';
+  outer.style.height=oh+'px';
+  document.getElementById('stage').style.transform=`scale(${scale})`;
+}
+window.addEventListener('resize', fitStage);
+fitStage();
 
 function fmt(s){
   const neg=s<0,abs=Math.abs(s);
@@ -184,14 +202,15 @@ function applyStyle(s){
   const st=currentStyle;
   const ff=st.fontName?`'CustomFont','IBM Plex Sans KR',sans-serif`:`'IBM Plex Sans KR',sans-serif`;
   const ffTime=st.fontName?`'CustomFont','Bebas Neue',monospace`:`'Bebas Neue',monospace`;
+  const msgSize=Math.max(Math.round(st.titleSize*0.75), 28);
   document.getElementById('dynamic-style').textContent=`
     #stage{background:${st.bgColor}!important}
-    #time{font-size:${st.timeSize}vw;color:${st.timeColor};font-family:${ffTime}}
+    #time{font-size:${st.timeSize}px;color:${st.timeColor};font-family:${ffTime}}
     #time.warn{color:${st.warnColor}}
     #time.neg{color:${st.negColor}}
-    #title{font-size:${st.titleSize}vw;color:${st.titleColor};font-family:${ff}}
-    #speaker{font-size:${st.speakerSize}vw;color:${st.speakerColor};font-family:${ff}}
-    #msg{font-family:${ff};font-size:${Math.max(st.titleSize*0.75,1.2)}vw}
+    #title{font-size:${st.titleSize}px;color:${st.titleColor};font-family:${ff}}
+    #speaker{font-size:${st.speakerSize}px;color:${st.speakerColor};font-family:${ff}}
+    #msg{font-family:${ff};font-size:${msgSize}px}
   `;
   if(st.fontData&&st.fontName){
     document.getElementById('custom-font-style').textContent=
@@ -230,12 +249,10 @@ function handleMsg(msg){
   else if(msg.type==='style')applyStyle(msg.data);
 }
 
-// postMessage 수신 (컨트롤러 미리보기 iframe)
 window.addEventListener('message',e=>{
   try{handleMsg(typeof e.data==='string'?JSON.parse(e.data):e.data);}catch(err){}
 });
 
-// WebSocket (실제 뷰어)
 const proto=location.protocol==='https:'?'wss':'ws';
 const ws=new WebSocket(`${proto}://${location.host}`);
 ws.onmessage=e=>{try{handleMsg(JSON.parse(e.data));}catch(err){}};
