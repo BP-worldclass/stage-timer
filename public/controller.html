@@ -205,21 +205,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Pl
       <div class="panel-section">
         <div class="panel-label">뷰어 디자인</div>
 
-        <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px">폰트 크기 (vw)</div>
+        <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px">폰트 크기 (px · 1920×1080 기준)</div>
         <div class="range-row">
           <label>타이머 숫자</label>
-          <input type="range" id="sz-time" min="8" max="40" step="0.5" value="22" oninput="onRange('timeSize',this)">
-          <span class="range-val" id="sz-time-v">22</span>
+          <input type="range" id="sz-time" min="80" max="700" step="4" value="520" oninput="onRange('timeSize',this)">
+          <span class="range-val" id="sz-time-v">520</span>
         </div>
         <div class="range-row">
           <label>제목</label>
-          <input type="range" id="sz-title" min="1" max="10" step="0.1" value="3" oninput="onRange('titleSize',this)">
-          <span class="range-val" id="sz-title-v">3</span>
+          <input type="range" id="sz-title" min="16" max="160" step="2" value="72" oninput="onRange('titleSize',this)">
+          <span class="range-val" id="sz-title-v">72</span>
         </div>
         <div class="range-row">
           <label>발표자</label>
-          <input type="range" id="sz-speaker" min="0.5" max="8" step="0.1" value="1.8" oninput="onRange('speakerSize',this)">
-          <span class="range-val" id="sz-speaker-v">1.8</span>
+          <input type="range" id="sz-speaker" min="12" max="120" step="2" value="44" oninput="onRange('speakerSize',this)">
+          <span class="range-val" id="sz-speaker-v">44</span>
         </div>
 
         <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;margin:10px 0 6px">색상</div>
@@ -249,13 +249,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Pl
         </div>
 
         <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;margin:10px 0 6px">커스텀 폰트</div>
-        <div id="font-name-display" style="font-size:12px;color:var(--muted);margin-bottom:7px">적용된 폰트 없음</div>
-        <div style="display:flex;gap:7px">
-          <label class="btn" style="cursor:pointer;flex:1;text-align:center">
-            🔤 폰트 업로드
-            <input type="file" id="font-input" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="uploadFont(this)">
+
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px">① 타이머 숫자 전용</div>
+        <div id="timer-font-name" style="font-size:11px;color:var(--muted);margin-bottom:6px">적용 없음</div>
+        <div style="display:flex;gap:7px;margin-bottom:10px">
+          <label class="btn" style="cursor:pointer;flex:1;text-align:center;font-size:12px">
+            🔤 업로드
+            <input type="file" id="font-timer-input" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="uploadFont(this,'timer')">
           </label>
-          <button class="btn danger-btn" id="btn-remove-font" style="display:none" onclick="removeFont()">제거</button>
+          <button class="btn danger-btn" id="btn-remove-timer-font" style="display:none;font-size:12px" onclick="removeFont('timer')">제거</button>
+        </div>
+
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px">② 제목 · 발표자 전용</div>
+        <div id="text-font-name" style="font-size:11px;color:var(--muted);margin-bottom:6px">적용 없음</div>
+        <div style="display:flex;gap:7px">
+          <label class="btn" style="cursor:pointer;flex:1;text-align:center;font-size:12px">
+            🔤 업로드
+            <input type="file" id="font-text-input" accept=".ttf,.otf,.woff,.woff2" style="display:none" onchange="uploadFont(this,'text')">
+          </label>
+          <button class="btn danger-btn" id="btn-remove-text-font" style="display:none;font-size:12px" onclick="removeFont('text')">제거</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:7px">TTF · OTF · WOFF · WOFF2 지원</div>
       </div>
@@ -472,7 +484,7 @@ function removeLogo(){
 
 
 // ---- DESIGN ----
-let styleState={timeSize:22,titleSize:3,speakerSize:1.8,timeColor:'#ffffff',titleColor:'#999999',speakerColor:'#555555',warnColor:'#ffab40',negColor:'#ff1744',bgColor:'#000000',fontName:'',fontData:''};
+let styleState={timeSize:520,titleSize:72,speakerSize:44,timeColor:'#ffffff',titleColor:'#999999',speakerColor:'#555555',warnColor:'#ffab40',negColor:'#ff1744',bgColor:'#000000',timerFontName:'',timerFontData:'',textFontName:'',textFontData:''};
 
 function onRange(key,el){
   const v=parseFloat(el.value);
@@ -489,26 +501,40 @@ function sendStyle(){
   send({type:'style',data:{...styleState}});
   postToViewer({type:'style', data:{...styleState}});
 }
-function uploadFont(input){
+function uploadFont(input, target){
   const file=input.files[0]; if(!file)return;
   const name=file.name.replace(/\.[^.]+$/,'');
   const reader=new FileReader();
   reader.onload=e=>{
-    styleState.fontName=name;
-    styleState.fontData=e.target.result;
-    document.getElementById('font-name-display').textContent='적용: '+name;
-    document.getElementById('font-name-display').style.color='var(--green)';
-    document.getElementById('btn-remove-font').style.display='block';
+    if(target==='timer'){
+      styleState.timerFontName=name; styleState.timerFontData=e.target.result;
+      document.getElementById('timer-font-name').textContent='적용: '+name;
+      document.getElementById('timer-font-name').style.color='var(--green)';
+      document.getElementById('btn-remove-timer-font').style.display='block';
+    } else {
+      styleState.textFontName=name; styleState.textFontData=e.target.result;
+      document.getElementById('text-font-name').textContent='적용: '+name;
+      document.getElementById('text-font-name').style.color='var(--green)';
+      document.getElementById('btn-remove-text-font').style.display='block';
+    }
     sendStyle();
   };
   reader.readAsDataURL(file);
 }
-function removeFont(){
-  styleState.fontName='';styleState.fontData='';
-  document.getElementById('font-name-display').textContent='적용된 폰트 없음';
-  document.getElementById('font-name-display').style.color='';
-  document.getElementById('btn-remove-font').style.display='none';
-  document.getElementById('font-input').value='';
+function removeFont(target){
+  if(target==='timer'){
+    styleState.timerFontName=''; styleState.timerFontData='';
+    document.getElementById('timer-font-name').textContent='적용 없음';
+    document.getElementById('timer-font-name').style.color='';
+    document.getElementById('btn-remove-timer-font').style.display='none';
+    document.getElementById('font-timer-input').value='';
+  } else {
+    styleState.textFontName=''; styleState.textFontData='';
+    document.getElementById('text-font-name').textContent='적용 없음';
+    document.getElementById('text-font-name').style.color='';
+    document.getElementById('btn-remove-text-font').style.display='none';
+    document.getElementById('font-text-input').value='';
+  }
   sendStyle();
 }
 function syncStyleUI(s){
