@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Stage Timer — Controller</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0d0d0d;--surface:#1a1a1a;--surface2:#222;--border:#2e2e2e;
+  --text:#e8e8e8;--muted:#666;
+  --green:#00e676;--amber:#ffab40;--red:#ff1744;--blue:#2979ff;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans KR',sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* LOCK SCREEN */
+#lock{position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+#lock h1{font-family:'Bebas Neue',monospace;font-size:36px;font-weight:400;letter-spacing:.1em;color:var(--text)}
+#lock p{font-size:13px;color:var(--muted)}
+#lock-input{background:#1a1a1a;border:1px solid var(--border);color:var(--text);font-size:22px;text-align:center;padding:12px 20px;border-radius:6px;width:180px;font-family:'IBM Plex Mono',monospace;letter-spacing:.2em}
+#lock-input:focus{outline:none;border-color:var(--blue)}
+#lock-err{font-size:12px;color:var(--red);height:16px}
+#lock-btn{padding:10px 32px;background:var(--green);color:#000;border:none;border-radius:5px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit}
+
+/* CONNECTION */
+#conn-bar{display:flex;align-items:center;gap:7px;padding:7px 14px;background:#111;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);flex-shrink:0}
+#conn-dot{width:7px;height:7px;border-radius:50%;background:#333;flex-shrink:0}
+#conn-dot.on{background:var(--green)}
+#conn-dot.off{background:var(--red)}
+
+/* HEADER */
+#ctrl-header{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#111;border-bottom:1px solid var(--border);flex-shrink:0}
+#ctrl-header h2{font-size:11px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex:1}
+.btn{padding:8px 14px;font-size:13px;font-family:inherit;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;transition:all .12s;white-space:nowrap}
+.btn:hover{background:var(--surface2);border-color:#444}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--green);color:#000;border-color:var(--green);font-weight:500}
+.btn.primary:hover{background:#33eb91}
+.btn.warn-btn{border-color:var(--amber);color:var(--amber)}
+.btn.danger-btn{border-color:var(--red);color:var(--red)}
+.btn.danger-btn:hover{background:rgba(255,23,68,.1)}
+
+/* BODY */
+#ctrl-body{display:flex;flex:1;overflow:hidden}
+#rundown{width:50%;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#rundown-header{padding:8px 14px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+#timer-list{flex:1;overflow-y:auto}
+.timer-item{display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid #1c1c1c;cursor:pointer;transition:background .1s;gap:9px;border-left:3px solid transparent}
+.timer-item:hover{background:#161616}
+.timer-item.active{background:#111f11;border-left-color:var(--green)}
+.t-index{font-size:11px;color:var(--muted);min-width:16px;font-family:'IBM Plex Mono',monospace;text-align:right}
+.t-info{flex:1;min-width:0}
+.t-title{font-size:14px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-speaker{font-size:11px;color:var(--muted);margin-top:2px}
+.t-dur{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);flex-shrink:0}
+.t-actions{display:flex;gap:4px;opacity:0;transition:opacity .1s}
+.timer-item:hover .t-actions{opacity:1}
+.t-btn{padding:3px 7px;font-size:10px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-family:inherit}
+.t-btn:hover{color:var(--text)}
+.t-btn.del:hover{color:var(--red);border-color:var(--red)}
+
+/* CONTROLS */
+#controls{flex:1;display:flex;flex-direction:column;overflow-y:auto}
+.panel-section{padding:14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-label{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+#ctrl-time{font-family:'Bebas Neue',monospace;font-size:clamp(36px,5.5vw,56px);font-weight:400;letter-spacing:.05em;color:var(--green);transition:color .3s;line-height:1}
+#ctrl-time.warn{color:var(--amber)}
+#ctrl-time.neg{color:var(--red)}
+#ctrl-meta{margin-top:5px;font-size:12px;color:var(--muted)}
+#ctrl-btns{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+#msg-input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 10px;font-family:inherit;font-size:13px;border-radius:4px;resize:none}
+#msg-input:focus{outline:none;border-color:var(--blue)}
+#msg-input.active{background:rgba(41,121,255,.1);border-color:var(--blue)}
+#msg-btns{display:flex;gap:7px;margin-top:8px}
+.setting-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px}
+.setting-row label:first-child{flex:1;color:var(--muted)}
+.setting-row input[type=number]{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 8px;width:64px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:center}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;background:#2a2a2a;border-radius:10px;transition:.2s;cursor:pointer}
+.tslider:before{content:'';position:absolute;height:14px;width:14px;left:3px;top:3px;background:#555;border-radius:50%;transition:.2s}
+.toggle input:checked+.tslider{background:rgba(0,230,118,.25)}
+.toggle input:checked+.tslider:before{transform:translateX(16px);background:var(--green)}
+
+/* MODAL */
+#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:100}
+#modal-bg.open{display:flex}
+#modal{background:#1c1c1c;border:1px solid var(--border);border-radius:10px;padding:20px;width:min(320px,90vw)}
+#modal h3{font-size:15px;font-weight:500;margin-bottom:16px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;font-family:inherit;font-size:14px;border-radius:4px}
+.field input:focus{outline:none;border-color:var(--blue)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#2e2e2e;border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lock">
+  <h1>Stage Timer</h1>
+  <p>컨트롤러 비밀번호를 입력하세요</p>
+  <input type="password" id="lock-input" placeholder="••••" maxlength="20" onkeydown="if(event.key==='Enter')tryUnlock()">
+  <div id="lock-err"></div>
+  <button id="lock-btn" onclick="tryUnlock()">입장</button>
+</div>
+
+<div id="app" style="display:none">
+  <!-- CONNECTION BAR -->
+  <div id="conn-bar">
+    <div id="conn-dot" class="off"></div>
+    <span id="conn-label">서버 연결 중...</span>
+    <span style="margin-left:auto;opacity:.5" id="viewer-url"></span>
+  </div>
+
+  <!-- HEADER -->
+  <div id="ctrl-header">
+    <h2>런다운</h2>
+    <button class="btn" onclick="openModal()">+ 타이머 추가</button>
+  </div>
+
+  <div id="ctrl-body">
+    <!-- RUNDOWN -->
+    <div id="rundown">
+      <div id="rundown-header">
+        <span>목록</span>
+        <span id="total-label" style="font-size:11px"></span>
+      </div>
+      <div id="timer-list"></div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div id="controls">
+      <!-- Timer Control -->
+      <div class="panel-section">
+        <div class="panel-label">현재 타이머</div>
+        <div id="ctrl-time">--:--</div>
+        <div id="ctrl-meta">타이머를 선택하세요</div>
+        <div id="ctrl-btns">
+          <button class="btn primary" id="btn-play" onclick="togglePlay()">▶ 시작</button>
+          <button class="btn" onclick="send({type:'reset'})">↺ 리셋</button>
+          <button class="btn" onclick="send({type:'next'})">⏭ 다음</button>
+        </div>
+      </div>
+
+      <!-- Message -->
+      <div class="panel-section">
+        <div class="panel-label">메시지 전송</div>
+        <textarea id="msg-input" rows="2" placeholder="무대 화면에 표시할 메시지..."></textarea>
+        <div id="msg-btns">
+          <button class="btn primary" onclick="sendMsg()">전송</button>
+          <button class="btn" onclick="clearMsg()">지우기</button>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="panel-section">
+        <div class="panel-label">설정</div>
+        <div class="setting-row">
+          <label>경고 시작 (초 전)</label>
+          <input type="number" id="warn-secs" value="60" min="0" max="600" onchange="send({type:'warnSecs',value:parseInt(this.value)||60})">
+          <span style="font-size:12px;color:var(--muted)">초</span>
+        </div>
+        <div class="setting-row">
+          <label>다음 자동 시작</label>
+          <label class="toggle"><input type="checkbox" id="auto-adv"><span class="tslider"></span></label>
+        </div>
+      </div>
+
+      <!-- Logo -->
+      <div class="panel-section">
+        <div class="panel-label">로고</div>
+        <div id="logo-preview-wrap" style="display:none;margin-bottom:10px;background:#111;border-radius:6px;padding:10px;text-align:center">
+          <img id="logo-preview" style="max-height:56px;max-width:100%;object-fit:contain">
+        </div>
+        <div style="display:flex;gap:7px">
+          <label class="btn" style="cursor:pointer;flex:1;text-align:center">
+            📁 로고 업로드
+            <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+          </label>
+          <button class="btn danger-btn" id="btn-remove-logo" style="display:none" onclick="removeLogo()">제거</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:7px">PNG 배경 투명 권장</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h3 id="modal-h">타이머 추가</h3>
+    <div class="field"><label>제목</label><input id="f-title" type="text" placeholder="예: 오프닝"></div>
+    <div class="field"><label>발표자</label><input id="f-speaker" type="text" placeholder="예: 홍길동 (선택)"></div>
+    <div class="field"><label>시간 (분)</label><input id="f-min" type="number" placeholder="10" min="0" max="999"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">취소</button>
+      <button class="btn primary" onclick="saveTimer()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- PASSWORD ----
+const CORRECT_PW = '1234'; // server.js와 동일하게 유지
+function tryUnlock(){
+  const v = document.getElementById('lock-input').value;
+  if(v === CORRECT_PW){
+    document.getElementById('lock').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').style.flexDirection='column';
+    initWS();
+  } else {
+    document.getElementById('lock-err').textContent='비밀번호가 틀렸습니다';
+    document.getElementById('lock-input').value='';
+    document.getElementById('lock-input').focus();
+  }
+}
+
+// ---- STATE ----
+let timers=[], curIdx=0, remaining=0, running=false;
+let editId=null, ws=null;
+
+// ---- WEBSOCKET ----
+function initWS(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen=()=>{
+    document.getElementById('conn-dot').className='on';
+    document.getElementById('conn-label').textContent='서버 연결됨';
+    const url=`${location.protocol}//${location.hostname}:${location.port}/viewer.html`;
+    document.getElementById('viewer-url').textContent='뷰어: '+url;
+  };
+  ws.onclose=()=>{
+    document.getElementById('conn-dot').className='off';
+    document.getElementById('conn-label').textContent='연결 끊김 — 새로고침 필요';
+    setTimeout(initWS, 3000);
+  };
+  ws.onmessage=e=>{
+    const msg=JSON.parse(e.data);
+    switch(msg.type){
+      case 'fullState':
+        timers=msg.state.timers; curIdx=msg.state.curIdx;
+        remaining=msg.state.remaining; running=msg.state.running;
+        document.getElementById('warn-secs').value=msg.state.warnSecs||60;
+        if(msg.state.logo) showLogoPreview(msg.state.logo);
+        if(msg.state.messageVisible){
+          document.getElementById('msg-input').value=msg.state.message;
+          document.getElementById('msg-input').classList.add('active');
+        }
+        renderList(); updateDisplay(); updatePlayBtn();
+        break;
+      case 'tick':
+        remaining=msg.remaining; updateDisplay();
+        break;
+      case 'play':
+        remaining=msg.remaining; running=true; updateDisplay(); updatePlayBtn();
+        break;
+      case 'pause':
+        running=false; updatePlayBtn();
+        break;
+      case 'reset':
+        remaining=msg.remaining; running=false; updateDisplay(); updatePlayBtn();
+        break;
+      case 'select':
+        curIdx=msg.curIdx; remaining=msg.remaining; running=false;
+        renderList(); updateDisplay(); updatePlayBtn();
+        break;
+      case 'timers':
+        timers=msg.timers; curIdx=msg.curIdx; remaining=msg.remaining;
+        renderList(); updateDisplay();
+        break;
+    }
+  };
+}
+
+function send(obj){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(obj)); }
+
+// ---- DISPLAY ----
+function fmt(s){const neg=s<0,abs=Math.abs(s);const m=Math.floor(abs/60),sec=abs%60;return (neg?'-':'')+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
+function warnAt(){return parseInt(document.getElementById('warn-secs')?.value)||60}
+function colorCls(s){if(s<=10)return 'neg';if(s<=warnAt())return 'warn';return '';}
+function updateDisplay(){
+  const el=document.getElementById('ctrl-time');
+  el.textContent=timers.length?fmt(remaining):'--:--';
+  el.className=timers.length?colorCls(remaining):'';
+  const t=timers[curIdx];
+  document.getElementById('ctrl-meta').textContent=t?`${t.title}${t.speaker?' · '+t.speaker:''}`:'타이머를 선택하세요';
+}
+function updatePlayBtn(){document.getElementById('btn-play').textContent=running?'⏸ 일시정지':'▶ 시작';}
+
+function togglePlay(){
+  if(running) send({type:'pause'});
+  else send({type:'play'});
+}
+
+// ---- RUNDOWN ----
+function renderList(){
+  const list=document.getElementById('timer-list');
+  if(!timers.length){
+    list.innerHTML='<div style="padding:28px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8">+ 타이머 추가 버튼으로<br>런다운을 만들어보세요</div>';
+    document.getElementById('total-label').textContent='';
+    return;
+  }
+  const tot=timers.reduce((a,t)=>a+t.duration,0);
+  const h=Math.floor(tot/60),m=tot%60;
+  document.getElementById('total-label').textContent=`총 ${h?h+'h ':''} ${m}min`;
+  list.innerHTML=timers.map((t,i)=>`
+    <div class="timer-item${i===curIdx?' active':''}" onclick="selectTimer(${i})">
+      <span class="t-index">${i+1}</span>
+      <div class="t-info">
+        <div class="t-title">${t.title}</div>
+        ${t.speaker?`<div class="t-speaker">${t.speaker}</div>`:''}
+      </div>
+      <span class="t-dur">${String(t.duration).padStart(2,'0')}:00</span>
+      <div class="t-actions">
+        <button class="t-btn" onclick="event.stopPropagation();openModal(${t.id})">편집</button>
+        <button class="t-btn del" onclick="event.stopPropagation();send({type:'deleteTimer',id:${t.id}})">삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+function selectTimer(idx){ send({type:'select',idx}); }
+
+// ---- MESSAGE ----
+function sendMsg(){
+  const v=document.getElementById('msg-input').value.trim();
+  if(!v)return;
+  send({type:'message',text:v,visible:true});
+  document.getElementById('msg-input').classList.add('active');
+}
+function clearMsg(){
+  send({type:'message',text:'',visible:false});
+  document.getElementById('msg-input').value='';
+  document.getElementById('msg-input').classList.remove('active');
+}
+
+// ---- MODAL ----
+function openModal(id){
+  editId=id||null;
+  const t=id?timers.find(x=>x.id===id):null;
+  document.getElementById('modal-h').textContent=id?'타이머 편집':'타이머 추가';
+  document.getElementById('f-title').value=t?t.title:'';
+  document.getElementById('f-speaker').value=t?t.speaker:'';
+  document.getElementById('f-min').value=t?t.duration:'';
+  document.getElementById('modal-bg').classList.add('open');
+  setTimeout(()=>document.getElementById('f-title').focus(),100);
+}
+function closeModal(){document.getElementById('modal-bg').classList.remove('open')}
+function saveTimer(){
+  const title=document.getElementById('f-title').value.trim()||'무제';
+  const speaker=document.getElementById('f-speaker').value.trim();
+  const duration=parseInt(document.getElementById('f-min').value)||5;
+  if(editId) send({type:'editTimer',id:editId,title,speaker,duration});
+  else send({type:'addTimer',title,speaker,duration});
+  closeModal();
+}
+
+// ---- LOGO ----
+function uploadLogo(input){
+  const file=input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{ send({type:'logo',data:e.target.result}); showLogoPreview(e.target.result); };
+  reader.readAsDataURL(file);
+}
+function showLogoPreview(src){
+  document.getElementById('logo-preview').src=src;
+  document.getElementById('logo-preview-wrap').style.display='block';
+  document.getElementById('btn-remove-logo').style.display='block';
+}
+function removeLogo(){
+  send({type:'logo',data:''});
+  document.getElementById('logo-preview').src='';
+  document.getElementById('logo-preview-wrap').style.display='none';
+  document.getElementById('btn-remove-logo').style.display='none';
+  document.getElementById('logo-input').value='';
+}
+
+// ---- KEYBOARD ----
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('modal-bg').classList.contains('open')){
+    if(e.key==='Enter')saveTimer();
+    if(e.key==='Escape')closeModal();
+    return;
+  }
+  if(document.getElementById('lock').style.display!=='none') return;
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key===' '){e.preventDefault();togglePlay();}
+  if(e.key==='ArrowRight') send({type:'next'});
+  if(e.key==='r'||e.key==='R') send({type:'reset'});
+});
+</script>
+</body>
+</html>

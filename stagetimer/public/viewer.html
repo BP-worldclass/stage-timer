@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stage Timer — Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#000;overflow:hidden}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:100vh}
+
+#logo{max-height:clamp(48px,7vh,100px);max-width:clamp(160px,28vw,400px);object-fit:contain;margin-bottom:clamp(12px,2.5vh,40px);display:none}
+#logo.show{display:block}
+
+#time{
+  font-family:'Bebas Neue',monospace;
+  font-size:clamp(100px,22vw,280px);
+  font-weight:400;
+  color:#fff;
+  line-height:1;
+  letter-spacing:.04em;
+  transition:color .3s;
+}
+#time.warn{color:#ffab40}
+#time.neg{color:#ff1744}
+
+#title{
+  font-family:'IBM Plex Sans KR',sans-serif;
+  font-size:clamp(18px,3vw,36px);
+  font-weight:300;
+  color:rgba(255,255,255,.6);
+  letter-spacing:.08em;
+  margin-top:clamp(10px,1.5vh,24px);
+}
+#speaker{
+  font-size:clamp(12px,1.8vw,22px);
+  font-weight:300;
+  color:rgba(255,255,255,.3);
+  margin-top:6px;
+  font-family:'IBM Plex Sans KR',sans-serif;
+}
+
+#msg{
+  position:fixed;
+  bottom:6%;left:5%;right:5%;
+  text-align:center;
+  font-size:clamp(16px,2.2vw,30px);
+  font-weight:400;
+  color:#fff;
+  font-family:'IBM Plex Sans KR',sans-serif;
+  background:rgba(41,121,255,.9);
+  padding:14px 24px;
+  border-radius:8px;
+  display:none;
+  animation:fadeIn .25s ease;
+}
+#msg.show{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+#next-up{
+  position:fixed;
+  top:16px;left:16px;
+  font-size:11px;
+  color:rgba(255,255,255,.22);
+  font-family:'IBM Plex Sans KR',sans-serif;
+  line-height:1.9;
+  text-align:left;
+}
+#next-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.18);margin-bottom:2px}
+
+#status-dot{
+  position:fixed;top:18px;right:18px;
+  width:8px;height:8px;border-radius:50%;
+  background:#333;transition:background .3s;
+}
+#status-dot.live{background:#ff1744;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div id="next-up"><div id="next-label"></div><div id="next-list"></div></div>
+<div id="status-dot"></div>
+<img id="logo" src="" alt="">
+<div id="time">--:--</div>
+<div id="title"></div>
+<div id="speaker"></div>
+<div id="msg"></div>
+
+<script>
+let warnSecs = 60;
+let timers = [];
+let curIdx = 0;
+
+function fmt(s){
+  const neg=s<0,abs=Math.abs(s);
+  const m=Math.floor(abs/60),sec=abs%60;
+  return (neg?'-':'')+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+}
+function colorCls(s){
+  if(s<=10)return 'neg';
+  if(s<=warnSecs)return 'warn';
+  return '';
+}
+function applyTime(s){
+  const el=document.getElementById('time');
+  el.textContent=fmt(s);
+  el.className=colorCls(s);
+}
+function applyTimers(ts, idx){
+  timers=ts; curIdx=idx;
+  const t=ts[idx];
+  document.getElementById('title').textContent=t?t.title:'';
+  document.getElementById('speaker').textContent=t?t.speaker:'';
+  const upcoming=ts.slice(idx+1,idx+3);
+  if(upcoming.length){
+    document.getElementById('next-label').textContent='NEXT';
+    document.getElementById('next-list').innerHTML=upcoming.map(x=>
+      `${x.title}${x.speaker?' · '+x.speaker:''} <span style="opacity:.5">${String(x.duration).padStart(2,'0')}:00</span>`
+    ).join('<br>');
+  } else {
+    document.getElementById('next-label').textContent='';
+    document.getElementById('next-list').textContent='';
+  }
+}
+
+const proto = location.protocol==='https:'?'wss':'ws';
+const ws = new WebSocket(`${proto}://${location.host}`);
+
+ws.onmessage = e => {
+  const msg = JSON.parse(e.data);
+  switch(msg.type){
+    case 'fullState':
+      const s=msg.state;
+      warnSecs=s.warnSecs||60;
+      applyTimers(s.timers, s.curIdx);
+      applyTime(s.remaining);
+      document.getElementById('status-dot').className=s.running?'live':'';
+      if(s.logo){const l=document.getElementById('logo');l.src=s.logo;l.className='show';}
+      if(s.messageVisible){const m=document.getElementById('msg');m.textContent=s.message;m.className='show';}
+      break;
+    case 'tick':
+      applyTime(msg.remaining);
+      break;
+    case 'play':
+      applyTime(msg.remaining);
+      document.getElementById('status-dot').className='live';
+      break;
+    case 'pause':
+      document.getElementById('status-dot').className='';
+      break;
+    case 'reset':
+      applyTime(msg.remaining);
+      document.getElementById('status-dot').className='';
+      break;
+    case 'select':
+      applyTimers(timers, msg.curIdx);
+      applyTime(msg.remaining);
+      document.getElementById('status-dot').className='';
+      break;
+    case 'timers':
+      applyTimers(msg.timers, msg.curIdx);
+      applyTime(msg.remaining);
+      break;
+    case 'message':
+      const mel=document.getElementById('msg');
+      mel.textContent=msg.text;
+      mel.className=msg.visible?'show':'';
+      break;
+    case 'logo':
+      const lel=document.getElementById('logo');
+      if(msg.data){lel.src=msg.data;lel.className='show';}
+      else{lel.src='';lel.className='';}
+      break;
+    case 'warnSecs':
+      warnSecs=msg.value;
+      break;
+  }
+};
+
+// 전체화면 자동 시도
+document.addEventListener('click', ()=>{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+});
+</script>
+</body>
+</html>
